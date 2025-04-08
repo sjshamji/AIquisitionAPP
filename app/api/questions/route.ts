@@ -3,6 +3,7 @@ import {
   generateMultipleChoiceQuestion, 
   generateOpenEndedQuestion 
 } from '../../../lib/api/openai';
+import { getRandomQuestionByTopicAndType } from '@/app/data/questions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +16,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // First try to get a question from our database
+    const databaseQuestion = getRandomQuestionByTopicAndType(topic, type);
+    
+    if (databaseQuestion) {
+      return NextResponse.json({
+        question: databaseQuestion
+      });
+    }
+
+    // If no question found in database, fall back to OpenAI generation
     // Check if OpenAI API key is set
     if (!process.env.OPENAI_API_KEY) {
       console.error('OpenAI API key is missing');

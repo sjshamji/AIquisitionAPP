@@ -1,10 +1,14 @@
 import React from 'react';
 import './globals.css';
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import Footer from './components/Footer';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AIquisition - Finance Interview Prep',
-  description: 'AI-powered finance interview preparation platform',
+  title: 'AIquisition',
+  description: 'Learn investment banking concepts through AI-powered practice',
 };
 
 export default function RootLayout({
@@ -14,8 +18,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50">
-        <main className="container mx-auto px-4 py-8">{children}</main>
+      <body className={inter.className}>
+        <div className="min-h-screen flex flex-col">
+          <main className="flex-grow">
+            {children}
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );

@@ -16,9 +16,6 @@ export default function Home() {
           <Link href="/practice" className="btn-primary">
             Start Practicing
           </Link>
-          <Link href="/upload" className="btn-secondary">
-            Upload Documents
-          </Link>
         </div>
       </section>
 
@@ -27,7 +24,7 @@ export default function Home() {
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
           Key Features
         </h2>
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 max-w-2xl mx-auto gap-8">
           {/* Feature 1 */}
           <div className="rounded-lg p-6 bg-white shadow-md hover:shadow-lg transition-shadow">
             <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
@@ -45,12 +42,12 @@ export default function Home() {
           <div className="rounded-lg p-6 bg-white shadow-md hover:shadow-lg transition-shadow">
             <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Document-Based Learning</h3>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">AI-Powered Feedback</h3>
             <p className="text-gray-700">
-              Upload your study materials and get personalized questions and insights from your own documents.
+              Get instant, personalized feedback on your answers with specific insights on accuracy, clarity, and depth.
             </p>
           </div>
 
@@ -58,12 +55,12 @@ export default function Home() {
           <div className="rounded-lg p-6 bg-white shadow-md hover:shadow-lg transition-shadow">
             <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">AI-Powered Feedback</h3>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">Comprehensive Coverage</h3>
             <p className="text-gray-700">
-              Get instant, personalized feedback on your answers with specific insights on accuracy, clarity, and depth.
+              Practice questions covering accounting, valuation, DCF, M&A, and LBO modeling to prepare for any finance interview.
             </p>
           </div>
         </div>
