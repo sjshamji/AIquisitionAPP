@@ -141,6 +141,7 @@ export default function QuestionPage() {
             type={question.type}
             choices={question.choices}
             modelAnswer={question.modelAnswer}
+            correctChoiceId={question.correctChoiceId}
             onSubmit={handleSubmit}
           />
           

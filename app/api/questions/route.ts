@@ -61,6 +61,7 @@ function getMockQuestion(topic: string, type: string) {
         { id: 'd', text: 'To predict stock market trends' }
       ],
       modelAnswer: 'The primary purpose of a DCF analysis is to determine the present value of expected future cash flows. It helps in estimating the value of an investment based on its expected future cash flows, discounted back to present value using an appropriate discount rate that reflects the risk associated with those cash flows.',
+      correctChoiceId: 'b',
       topic
     };
   } else {

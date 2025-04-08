@@ -19,6 +19,7 @@ export interface Question {
   type: 'multiple-choice' | 'open-ended';
   choices?: { id: string; text: string }[];
   modelAnswer: string;
+  correctChoiceId?: string;
   topic: string;
 }
 
@@ -75,6 +76,7 @@ export async function generateMultipleChoiceQuestion(
       type: 'multiple-choice',
       choices: responseData.choices,
       modelAnswer: responseData.modelAnswer,
+      correctChoiceId: responseData.correctChoiceId,
       topic,
     };
   } catch (error) {

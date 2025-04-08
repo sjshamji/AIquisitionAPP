@@ -15,10 +15,11 @@ export interface QuestionProps {
   type: QuestionType;
   choices?: Choice[];
   modelAnswer?: string;
+  correctChoiceId?: string;
   onSubmit: (questionId: string, answer: string | string[]) => Promise<void>;
 }
 
-export function Question({ id, text, type, choices = [], modelAnswer, onSubmit }: QuestionProps) {
+export function Question({ id, text, type, choices = [], modelAnswer, correctChoiceId, onSubmit }: QuestionProps) {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -44,6 +45,8 @@ export function Question({ id, text, type, choices = [], modelAnswer, onSubmit }
     }
   };
 
+  const isCorrect = type === 'multiple-choice' && selectedChoice === correctChoiceId;
+
   return (
     <Card>
       <CardHeader>
@@ -61,7 +64,13 @@ export function Question({ id, text, type, choices = [], modelAnswer, onSubmit }
                 key={choice.id}
                 className={`p-3 rounded-md border cursor-pointer transition-colors ${
                   selectedChoice === choice.id
-                    ? 'bg-primary-50 border-primary-300'
+                    ? isSubmitted
+                      ? isCorrect
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-red-50 border-red-300'
+                      : 'bg-primary-50 border-primary-300'
+                    : isSubmitted && choice.id === correctChoiceId
+                    ? 'bg-green-50 border-green-300'
                     : 'border-gray-200 hover:bg-gray-50'
                 } ${isSubmitted ? 'pointer-events-none' : ''}`}
                 onClick={() => !isSubmitted && setSelectedChoice(choice.id)}
@@ -99,6 +108,11 @@ export function Question({ id, text, type, choices = [], modelAnswer, onSubmit }
         <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
           <h4 className="font-medium text-green-800 mb-2">Model Answer</h4>
           <p className="text-green-700">{modelAnswer}</p>
+          {type === 'multiple-choice' && (
+            <div className={`mt-2 font-medium ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+              {isCorrect ? 'Correct!' : 'Incorrect'}
+            </div>
+          )}
         </div>
       )}
       

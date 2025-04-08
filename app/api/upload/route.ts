@@ -91,6 +91,7 @@ function getMockDocumentQuestions(topic: string, count: number) {
           { id: 'd', text: `${topic} has no impact on investment decisions.` }
         ],
         modelAnswer: `${topic} requires both quantitative and qualitative assessment. While numbers are important, understanding the context, industry trends, and management quality are equally crucial for comprehensive analysis.`,
+        correctChoiceId: 'b',
         topic
       });
     } else {

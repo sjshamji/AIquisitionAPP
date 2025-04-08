@@ -115,6 +115,7 @@ export default function UploadPage() {
             type={questions[activeQuestionIndex].type}
             choices={questions[activeQuestionIndex].choices}
             modelAnswer={questions[activeQuestionIndex].modelAnswer}
+            correctChoiceId={questions[activeQuestionIndex].correctChoiceId}
             onSubmit={handleQuestionSubmit}
           />
           
