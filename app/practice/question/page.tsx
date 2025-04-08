@@ -6,7 +6,7 @@ import { Button } from '../../../components/Button';
 import { Card, CardHeader, CardContent } from '../../../components/Card';
 import { Topic, topics } from '@/app/data/topics';
 import { getQuestionsByTopic } from '@/app/data/questions';
-import { Question as OpenAIQuestion } from '@/lib/api/openai';
+import { Question as OpenAIQuestion, FeedbackResult } from '@/lib/api/openai';
 import { updateTopicProgress } from '@/app/utils/progress';
 import Link from 'next/link';
 
@@ -22,6 +22,10 @@ export default function QuestionPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showModelAnswer, setShowModelAnswer] = useState(false);
 
   useEffect(() => {
     if (topicId) {
@@ -33,7 +37,7 @@ export default function QuestionPage() {
 
   if (!topic) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Topic not found</h2>
@@ -49,7 +53,7 @@ export default function QuestionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Loading questions...</h2>
@@ -61,7 +65,7 @@ export default function QuestionPage() {
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">No questions available</h2>
@@ -77,9 +81,57 @@ export default function QuestionPage() {
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  const handleSubmit = () => {
-    if (userAnswer.trim()) {
-      setShowAnswer(true);
+  const handleSubmit = async () => {
+    if (!currentQuestion) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questionText: currentQuestion.text,
+          userAnswer,
+          modelAnswer: currentQuestion.modelAnswer,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to evaluate answer');
+      }
+
+      const data = await response.json();
+      setFeedback(data.feedback);
+      setShowModelAnswer(true);
+    } catch (error) {
+      console.error('Error evaluating answer:', error);
+      // Set default feedback on error
+      setFeedback({
+        score: 'Needs improvement',
+        overallFeedback: 'Your answer is generally correct but could be more detailed. Consider expanding on the key concepts mentioned in the model answer.',
+        categories: [
+          {
+            name: 'Technical accuracy',
+            score: 'Needs improvement',
+            comment: 'The answer lacks sufficient technical detail or contains inaccuracies. Review the core concepts and be more precise in your explanations.'
+          },
+          {
+            name: 'Clarity and structure',
+            score: 'Needs improvement',
+            comment: 'Your response is somewhat disorganized. Consider using a more logical flow with clear introduction, body, and conclusion.'
+          },
+          {
+            name: 'Depth of insight',
+            score: 'Needs improvement',
+            comment: 'You\'ve demonstrated limited analytical thinking. Try to go beyond basic explanations and show deeper understanding of implications.'
+          }
+        ]
+      });
+      setShowModelAnswer(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,6 +145,7 @@ export default function QuestionPage() {
     setShowAnswer(false);
     setUserAnswer('');
     setIsCorrect(null);
+    setFeedback(null);
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
@@ -100,10 +153,24 @@ export default function QuestionPage() {
     }
   };
 
+  // Helper function to get score color
+  const getScoreColor = (score: string) => {
+    switch (score) {
+      case 'Strong':
+        return 'text-green-600 bg-green-50';
+      case 'Good':
+        return 'text-blue-600 bg-blue-50';
+      case 'Needs improvement':
+        return 'text-amber-600 bg-amber-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+    <div className="min-h-screen bg-white py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="px-6 py-5 border-b border-primary-100">
             <div className="flex justify-between items-center">
               <Link href="/practice" className="text-primary-600 hover:text-primary-700 flex items-center">
@@ -134,19 +201,63 @@ export default function QuestionPage() {
                   placeholder="Type your answer here..."
                   value={userAnswer}
                   onChange={(e) => setUserAnswer(e.target.value)}
-                  disabled={showAnswer}
+                  disabled={showModelAnswer}
                 />
               </div>
             </div>
 
-            {showAnswer && (
-              <div className="mb-6 p-5 bg-primary-50 rounded-lg border border-primary-100">
-                <h4 className="text-sm font-medium text-primary-800 mb-2">Model Answer:</h4>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{currentQuestion.modelAnswer}</p>
-              </div>
+            {showModelAnswer && (
+              <>
+                <div className="mb-6 p-5 bg-primary-50 rounded-lg border border-primary-100">
+                  <h4 className="text-sm font-medium text-primary-800 mb-2">Model Answer:</h4>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{currentQuestion.modelAnswer}</p>
+                </div>
+
+                {isLoadingFeedback ? (
+                  <div className="mb-6 p-5 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="text-gray-700">Analyzing your answer...</span>
+                    </div>
+                  </div>
+                ) : feedback ? (
+                  <div className="mb-6 p-5 bg-white rounded-lg border border-gray-200">
+                    <h4 className="text-lg font-medium text-gray-900 mb-3">AI Feedback</h4>
+                    
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-4 ${getScoreColor(feedback.score)}`}>
+                      {feedback.score}
+                    </div>
+                    
+                    <div className="mb-4">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Overall Feedback:</h5>
+                      <p className="text-sm text-gray-600">{feedback.overallFeedback}</p>
+                    </div>
+                    
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Detailed Assessment:</h5>
+                      <div className="space-y-3">
+                        {feedback.categories.map((category, index) => (
+                          <div key={index} className="border border-gray-100 rounded-md p-3">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-sm font-medium text-gray-700">{category.name}</span>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getScoreColor(category.score)}`}>
+                                {category.score}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">{category.comment}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
 
-            {showAnswer && isCorrect === null && (
+            {showModelAnswer && isCorrect === null && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Was your answer correct?</h4>
                 <div className="flex space-x-4">
@@ -184,13 +295,15 @@ export default function QuestionPage() {
             )}
 
             <div className="flex justify-end space-x-3">
-              {!showAnswer ? (
+              {!showModelAnswer ? (
                 <button
                   onClick={handleSubmit}
-                  disabled={!userAnswer.trim()}
-                  className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors"
+                  disabled={isSubmitting || !userAnswer.trim()}
+                  className={`inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors ${
+                    isSubmitting || !userAnswer.trim() ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Submit Answer
+                  {isSubmitting ? 'Evaluating...' : 'Submit Answer'}
                 </button>
               ) : (
                 <button

@@ -42,7 +42,7 @@ export default function PracticePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <h2 className="text-xl font-semibold mb-4 text-gray-900">Topics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {topics.map((topic) => {
                 const progress = topicsProgress.find(p => p.topicId === topic.id) || {
                   totalQuestions: 0,
@@ -57,26 +57,30 @@ export default function PracticePage() {
                 return (
                   <Link 
                     key={topic.id}
-                    href={`/practice/question?topic=${topic.id}`}
+                    href={`/practice/question?topic=${encodeURIComponent(topic.id)}`}
                     className="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-primary-100"
                   >
-                    <h3 className="text-xl font-semibold mb-2 text-gray-900">{topic.name}</h3>
-                    <p className="text-gray-600 mb-4">{topic.description}</p>
-                    
-                    <div className="mt-4">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span>{progress.answeredQuestions} of {progress.totalQuestions} questions</span>
+                    <div className="flex flex-col md:flex-row md:items-center">
+                      <div className="mb-4 md:mb-0 md:mr-6 md:w-2/3">
+                        <h3 className="text-xl font-semibold mb-2 text-gray-900">{topic.name}</h3>
+                        <p className="text-gray-600 text-sm line-clamp-2">{topic.description}</p>
                       </div>
-                      <div className="w-full bg-primary-100 rounded-full h-2.5">
-                        <div 
-                          className="bg-primary-600 h-2.5 rounded-full" 
-                          style={{ width: `${progressPercentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-sm mt-1">
-                        <span className="text-green-600">{progress.correctAnswers} correct</span>
-                        <span className="text-gray-500">{progressPercentage}% complete</span>
+                      
+                      <div className="w-full md:w-1/3 min-w-[200px]">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Progress</span>
+                          <span>{progress.answeredQuestions} of {progress.totalQuestions} questions</span>
+                        </div>
+                        <div className="w-full bg-primary-100 rounded-full h-2.5">
+                          <div 
+                            className="bg-primary-600 h-2.5 rounded-full" 
+                            style={{ width: `${progressPercentage}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-sm mt-1">
+                          <span className="text-green-600">{progress.correctAnswers} correct</span>
+                          <span className="text-gray-500">{progressPercentage}% complete</span>
+                        </div>
                       </div>
                     </div>
                   </Link>
