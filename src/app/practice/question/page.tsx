@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Button } from '../../../components/Button';
-import { Card, CardHeader, CardContent } from '../../../components/Card';
-import { Topic, topics } from '@/app/data/topics';
-import { getQuestionsByTopic } from '@/app/data/questions';
-import { Question, FeedbackResult } from '@/app/types';
-import { updateTopicProgress, getGeneratedQuestions, storeGeneratedQuestions, markQuestionAsCorrect, isQuestionCorrect } from '@/app/utils/progress';
+import { Button } from '../@/components/ui/Button';
+import { Card, CardHeader, CardContent } from '../@/components/ui/Card';
+import { Topic, topics } from '@/lib/data/topics';
+import { getQuestionsByTopic } from '@/lib/data/questions';
+import { Question, FeedbackResult } from '@/types';
+import { updateTopicProgress, getGeneratedQuestions, storeGeneratedQuestions, markQuestionAsCorrect, isQuestionCorrect } from '@/utils/progress';
 import Link from 'next/link';
 
 export default function QuestionPage() {
@@ -82,22 +82,22 @@ export default function QuestionPage() {
     setIsGeneratingQuestions(true);
     try {
       const response = await fetch('/api/generate-questions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           questionText: currentQuestion.text,
           modelAnswer: currentQuestion.modelAnswer,
           topicId,
         }),
-        });
-        
-        if (!response.ok) {
+      });
+
+      if (!response.ok) {
         throw new Error('Failed to generate questions');
-        }
-        
-        const data = await response.json();
+      }
+
+      const data = await response.json();
       
       // Store the new questions in localStorage
       const existingGeneratedQuestions = getGeneratedQuestions(topicId);
@@ -127,7 +127,7 @@ export default function QuestionPage() {
     } catch (error) {
       console.error('Error generating questions:', error);
       alert('Failed to generate additional questions. Please try again.');
-      } finally {
+    } finally {
       setIsGeneratingQuestions(false);
     }
   };
@@ -207,25 +207,25 @@ export default function QuestionPage() {
         setIsSubmitting(false);
         return;
       }
-        
-        const response = await fetch('/api/evaluate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+      
+      const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           questionText: currentQuestion.text,
           userAnswer,
           modelAnswer: currentQuestion.modelAnswer,
-          }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to evaluate answer');
-        }
-        
-        const data = await response.json();
-        setFeedback(data.feedback);
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to evaluate answer');
+      }
+
+      const data = await response.json();
+      setFeedback(data.feedback);
       setShowModelAnswer(true);
     } catch (error) {
       console.error('Error evaluating answer:', error);
@@ -297,7 +297,7 @@ export default function QuestionPage() {
         return 'text-gray-600 bg-gray-50';
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-white py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -317,9 +317,9 @@ export default function QuestionPage() {
                 <span className="text-sm text-gray-500">
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </span>
-        </div>
+              </div>
             </div>
-            </div>
+          </div>
           
           <div className="p-6">
             <div className="mb-6">

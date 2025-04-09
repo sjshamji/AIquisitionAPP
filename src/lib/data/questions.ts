@@ -1,4 +1,4 @@
-import { Question } from '@/app/types';
+import { Question } from '@/types';
 
 // Define the interface for the question data
 interface QuestionData {
@@ -21,7 +21,7 @@ export function getRandomQuestionByTopicAndType(topicId: string, type: string): 
     type: type as 'open-ended' | 'multiple-choice',
     modelAnswer: question.Answer,
     topic: topicId,
-    source: "base"
+    source: "manual"
   };
 } 
 
@@ -34,7 +34,7 @@ export function getQuestionsByTopic(topicId: string): Question[] {
     type: 'open-ended', // default type for prototype
     modelAnswer: q.Answer,
     topic: topicId,
-    source: "base"
+    source: "manual"
     }));
     }
 

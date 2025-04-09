@@ -1,49 +1,22 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
 export default function Home() {
-  useEffect(() => {
-    const handleScroll = () => {
-      document.documentElement.style.setProperty('--scroll', window.scrollY.toString());
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial call
-    
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   return (
-    <div className="relative">
-      {/* Network Grid Background */}
-      <div className="fixed inset-0 -z-10 bg-white">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            radial-gradient(circle at 1px 1px, rgba(138,99,210,0.15) 2px, transparent 0),
-            radial-gradient(circle at 1px 1px, rgba(91,145,229,0.1) 2px, transparent 0)
-          `,
-          backgroundSize: '40px 40px, 30px 30px',
-          backgroundPosition: '0 0, 20px 20px',
-          transform: 'translate3d(0, calc(var(--scroll) * -0.1px), 0)',
-          transition: 'transform 0.1s ease-out'
-        }} />
+    <div className="relative overflow-hidden">
+      {/* Animated background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-white to-gray-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(138,99,210,0.15),rgba(91,145,229,0.15))]" />
         
-        {/* Connection Lines */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            linear-gradient(45deg, rgba(138,99,210,0.05) 25%, transparent 25%),
-            linear-gradient(-45deg, rgba(91,145,229,0.05) 25%, transparent 25%)
-          `,
-          backgroundSize: '60px 60px',
-          transform: 'translate3d(0, calc(var(--scroll) * -0.2px), 0)',
-          transition: 'transform 0.1s ease-out'
-        }} />
-        
-        {/* Overlay Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-transparent" />
+        {/* Animated blobs */}
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary-100/40 rounded-full mix-blend-multiply filter blur-2xl animate-float-slow" />
+        <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-secondary-100/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob" />
+        <div className="absolute bottom-1/4 left-1/3 w-[500px] h-[500px] bg-primary-200/40 rounded-full mix-blend-multiply filter blur-2xl animate-float-slow" style={{ animationDelay: '-5s' }} />
+        <div className="absolute bottom-1/3 right-1/3 w-[500px] h-[500px] bg-secondary-200/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob" style={{ animationDelay: '-3s' }} />
       </div>
 
       {/* Main content */}
@@ -177,14 +150,14 @@ export default function Home() {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
               Success Stories
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Testimonial 1 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md">
+              <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center mb-4">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center mr-4">
                     <span className="text-gray-500 font-medium">JD</span>
@@ -200,7 +173,7 @@ export default function Home() {
               </div>
 
               {/* Testimonial 2 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md">
+              <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center mb-4">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center mr-4">
                     <span className="text-gray-500 font-medium">SL</span>
@@ -216,7 +189,7 @@ export default function Home() {
               </div>
 
               {/* Testimonial 3 */}
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-md">
+              <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center mb-4">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center mr-4">
                     <span className="text-gray-500 font-medium">MR</span>

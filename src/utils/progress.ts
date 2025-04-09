@@ -1,5 +1,5 @@
-import { Topic } from '@/app/data/topics';
-import { getQuestionsByTopic } from '@/app/data/questions';
+import { Topic } from '@/lib/data/topics';
+import { getQuestionsByTopic } from '@/lib/data/questions';
 
 export interface TopicProgress {
   topicId: string;
