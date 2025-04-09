@@ -37,7 +37,7 @@ export default function QuestionBankPage() {
   const [newQuestion, setNewQuestion] = useState<Partial<UserQuestion>>({
     text: '',
     modelAnswer: '',
-    type: 'open-ended',
+    type: 'text',
     topic: '',
     source: 'manual'
   });
@@ -117,7 +117,7 @@ export default function QuestionBankPage() {
       setNewQuestion({
         text: '',
         modelAnswer: '',
-        type: 'open-ended',
+        type: 'text',
         topic: selectedTopic,
         source: 'manual'
       });
@@ -182,7 +182,7 @@ export default function QuestionBankPage() {
       setNewQuestion({
         text: '',
         modelAnswer: '',
-        type: 'open-ended',
+        type: 'text',
         topic: selectedTopic,
         options: [],
         source: 'manual'

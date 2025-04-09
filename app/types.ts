@@ -1,11 +1,12 @@
 export interface Question {
   id: string;
+  topic: string;
   text: string;
   modelAnswer: string;
-  type: 'multiple-choice' | 'open-ended';
-  topic: string;
-  source?: 'manual' | 'generated' | 'base';
+  type: 'multiple-choice' | 'text';
   options?: string[];
+  explanation?: string;
+  source?: 'base' | 'generated' | 'manual';
 }
 
 export interface Topic {
@@ -35,18 +36,18 @@ export interface FeedbackResult {
 export interface UserProgress {
   userId: string;
   topics: {
-    [topicId: string]: {
-      completedQuestions: string[];
-      correctQuestions: string[];
+    [key: string]: {
+      completedQuestions: number;
+      correctQuestions: number;
       lastAccessed: Date;
     };
   };
   lastAccessed: Date;
 }
 
-export interface UserQuestion extends Question {
+export interface UserQuestion extends Omit<Question, 'id'> {
+  id: string;
   userId: string;
   createdAt: Date;
-  source: 'manual' | 'generated';
   isCorrect?: boolean;
 } 

@@ -126,12 +126,9 @@ export default function PracticePage() {
                 // Get the number of correct questions for this topic
                 const correctQuestions = getCorrectQuestions(topic.id);
                 
-                // Calculate the number of remaining questions (excluding correct ones)
-                const remainingQuestions = topicProgress.totalQuestions - correctQuestions.length;
-                
                 // Calculate progress percentage based on total questions
                 const progressPercentage = topicProgress.totalQuestions > 0 
-                  ? Math.round((topicProgress.answeredQuestions / topicProgress.totalQuestions) * 100) 
+                  ? Math.round((topicProgress.correctAnswers / topicProgress.totalQuestions) * 100) 
                   : 0;
                 
                 return (
@@ -148,7 +145,7 @@ export default function PracticePage() {
                       <div className="w-full md:w-1/3 min-w-[200px]">
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
                           <span>Progress</span>
-                          <span>{topicProgress.answeredQuestions} of {topicProgress.totalQuestions} questions</span>
+                          <span>{topicProgress.correctAnswers} of {topicProgress.totalQuestions} questions</span>
                         </div>
                         <div className="w-full bg-primary-100 rounded-full h-2.5">
                           <div 

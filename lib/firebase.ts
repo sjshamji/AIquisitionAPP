@@ -6,19 +6,53 @@ import { UserProgress, UserQuestion } from '@/app/types';
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCKOuNpE2dwR8vTX8Eq4Oi0ls9UeRlky-c",
-  authDomain: "aiquisition-bbd3f.firebaseapp.com",
-  projectId: "aiquisition-bbd3f",
-  storageBucket: "aiquisition-bbd3f.firebasestorage.app",
-  messagingSenderId: "636262831781",
-  appId: "1:636262831781:web:d733be00335bf176661f4c",
-  measurementId: "G-DN81W5MMZZ"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+// Debug environment variables
+console.log('Firebase config loaded:', {
+  apiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: !!process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: !!process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: !!process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: !!process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+});
+
+// Check if any environment variables are missing
+const missingVars = [];
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) missingVars.push('NEXT_PUBLIC_FIREBASE_API_KEY');
+if (!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) missingVars.push('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
+if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) missingVars.push('NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+if (!process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) missingVars.push('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
+if (!process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) missingVars.push('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID');
+if (!process.env.NEXT_PUBLIC_FIREBASE_APP_ID) missingVars.push('NEXT_PUBLIC_FIREBASE_APP_ID');
+
+if (missingVars.length > 0) {
+  console.error('Missing Firebase environment variables:', missingVars);
+  console.error('Please check your .env.local file and make sure all required variables are set.');
+}
+
 // Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+let app;
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  console.log('Firebase app initialized successfully');
+} catch (error) {
+  console.error('Error initializing Firebase app:', error);
+  throw error;
+}
+
 const auth = getAuth(app);
 const db = getFirestore(app);
+console.log('Firebase Auth and Firestore initialized');
 
 // Authentication Functions
 export async function sendVerificationEmail() {
@@ -76,40 +110,60 @@ export async function getUserProgress(userId: string): Promise<UserProgress> {
 }
 
 export async function updateUserProgress(userId: string, topic: string, isCorrect: boolean): Promise<UserProgress> {
-  const progressDoc = await getDoc(doc(db, 'userProgress', userId));
-  const currentProgress = progressDoc.exists() ? progressDoc.data() as UserProgress : {
-    userId,
-    topics: {},
-    lastAccessed: new Date()
-  };
-
-  const topicProgress = currentProgress.topics[topic] || {
-    completedQuestions: [],
-    correctQuestions: [],
-    lastAccessed: new Date()
-  };
-
-  // Generate a unique ID for this question attempt
-  const questionAttemptId = crypto.randomUUID();
+  const progressRef = doc(db, 'userProgress', userId);
+  const progressDoc = await getDoc(progressRef);
   
-  const updatedProgress: UserProgress = {
+  if (!progressDoc.exists()) {
+    // Initialize empty progress if none exists
+    const emptyProgress: UserProgress = {
+      userId,
+      topics: {
+        [topic]: {
+          completedQuestions: 1,
+          correctQuestions: isCorrect ? 1 : 0,
+          lastAccessed: new Date()
+        }
+      },
+      lastAccessed: new Date()
+    };
+    await setDoc(progressRef, emptyProgress);
+    return emptyProgress;
+  }
+
+  const currentProgress = progressDoc.data() as UserProgress;
+  const topicProgress = currentProgress.topics[topic] || {
+    completedQuestions: 0,
+    correctQuestions: 0,
+    lastAccessed: new Date()
+  };
+
+  // Update the progress
+  const updatedProgress = {
+    [`topics.${topic}.completedQuestions`]: topicProgress.completedQuestions + 1,
+    [`topics.${topic}.correctQuestions`]: isCorrect 
+      ? topicProgress.correctQuestions + 1 
+      : topicProgress.correctQuestions,
+    [`topics.${topic}.lastAccessed`]: new Date(),
+    lastAccessed: new Date()
+  };
+
+  await updateDoc(progressRef, updatedProgress);
+
+  // Return the full updated progress
+  return {
     ...currentProgress,
     topics: {
       ...currentProgress.topics,
       [topic]: {
-        ...topicProgress,
-        completedQuestions: [...topicProgress.completedQuestions, questionAttemptId],
+        completedQuestions: topicProgress.completedQuestions + 1,
         correctQuestions: isCorrect 
-          ? [...topicProgress.correctQuestions, questionAttemptId] 
+          ? topicProgress.correctQuestions + 1 
           : topicProgress.correctQuestions,
         lastAccessed: new Date()
       }
     },
     lastAccessed: new Date()
   };
-
-  await setDoc(doc(db, 'userProgress', userId), updatedProgress);
-  return updatedProgress;
 }
 
 // User Questions Functions

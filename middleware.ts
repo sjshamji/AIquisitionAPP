@@ -7,7 +7,10 @@ export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Define public paths that don't require authentication
-  const isPublicPath = path === '/auth/login' || path === '/auth/register';
+  const isPublicPath = path === '/auth/login' || 
+                      path === '/auth/signup' || 
+                      path === '/auth/reset-password' || 
+                      path === '/auth/verify-email';
 
   // Get the token from the cookies
   const token = request.cookies.get('firebase-auth-token')?.value || '';

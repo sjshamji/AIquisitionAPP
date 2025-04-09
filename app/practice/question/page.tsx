@@ -6,13 +6,17 @@ import { Button } from '../../../components/Button';
 import { Card, CardHeader, CardContent } from '../../../components/Card';
 import { Topic, topics } from '@/app/data/topics';
 import { getQuestionsByTopic } from '@/app/data/questions';
-import { Question, FeedbackResult } from '@/app/types';
-import { updateTopicProgress, getGeneratedQuestions, storeGeneratedQuestions, markQuestionAsCorrect, isQuestionCorrect } from '@/app/utils/progress';
+import { Question, FeedbackResult, UserQuestion } from '@/app/types';
+import { updateTopicProgress, getGeneratedQuestions, storeGeneratedQuestions, markQuestionAsCorrect, isQuestionCorrect, getAllTopicsProgress } from '@/app/utils/progress';
 import Link from 'next/link';
+import { useUserData } from '@/app/providers/UserDataProvider';
+import { useAuth } from '@/app/providers/FirebaseAuthProvider';
 
 export default function QuestionPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const { updateProgress } = useUserData();
   const topicId = searchParams.get('topic');
   const type = searchParams.get('type') || 'open-ended';
   const topic = topics.find((t: Topic) => t.id === topicId);
@@ -267,6 +271,11 @@ export default function QuestionPage() {
     
     // Update progress based on whether the answer was correct
     updateTopicProgress(topicId!, correct);
+    
+    // Also update progress in Firebase
+    if (user) {
+      updateProgress(topicId!, correct);
+    }
   };
 
   const handleNext = () => {

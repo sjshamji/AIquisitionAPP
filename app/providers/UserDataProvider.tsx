@@ -57,7 +57,24 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
     try {
       const updatedProgress = await updateUserProgress(user.uid, topic, isCorrect);
-      setUserProgress(updatedProgress);
+      console.log('Progress updated:', { topic, isCorrect, updatedProgress });
+      
+      // Convert Date strings back to Date objects
+      const formattedProgress: UserProgress = {
+        ...updatedProgress,
+        lastAccessed: new Date(updatedProgress.lastAccessed),
+        topics: Object.fromEntries(
+          Object.entries(updatedProgress.topics).map(([key, value]) => [
+            key,
+            {
+              ...value,
+              lastAccessed: new Date(value.lastAccessed)
+            }
+          ])
+        )
+      };
+      
+      setUserProgress(formattedProgress);
     } catch (error) {
       console.error('Error updating progress:', error);
     }

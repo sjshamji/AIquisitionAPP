@@ -11,8 +11,6 @@ import {
   sendEmailVerification as sendEmailVerificationFirebase,
   sendPasswordResetEmail,
   updatePassword as updatePasswordFirebase,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -22,10 +20,9 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  signInWithGoogle: () => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   sendVerificationEmail: () => Promise<{ success: boolean; message: string }>;
-  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  resetPassword: () => Promise<{ success: boolean; message: string }>;
   isEmailVerified: boolean;
   sendEmailVerification: () => Promise<{ success: boolean; message: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message: string }>;
@@ -40,10 +37,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getAuth();
-    console.log('Firebase Auth initialized:', !!auth);
-    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('Auth state changed:', user ? 'User logged in' : 'No user');
       setUser(user);
       setLoading(false);
       
@@ -63,32 +57,11 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      console.log('Attempting to sign up with email:', email);
       const auth = getAuth();
-      console.log('Auth object available:', !!auth);
-      
-      if (!auth) {
-        return { 
-          success: false, 
-          message: 'Firebase Auth is not initialized properly. Check your Firebase configuration.' 
-        };
-      }
-      
-      console.log('Creating user with email and password...');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('User created successfully:', !!userCredential.user);
-      
-      if (!userCredential.user) {
-        return { 
-          success: false, 
-          message: 'User was not created properly.' 
-        };
-      }
       
       // Send verification email
-      console.log('Sending verification email...');
       await sendEmailVerificationFirebase(userCredential.user);
-      console.log('Verification email sent');
       
       return { 
         success: true, 
@@ -96,27 +69,9 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       };
     } catch (error: any) {
       console.error('Error signing up:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      
-      // Provide more user-friendly error messages based on Firebase error codes
-      let userMessage = 'Failed to create account';
-      
-      if (error.code === 'auth/email-already-in-use') {
-        userMessage = 'This email is already registered. Please use a different email or try to sign in.';
-      } else if (error.code === 'auth/invalid-email') {
-        userMessage = 'The email address is not valid.';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        userMessage = 'Email/password accounts are not enabled. Please contact support.';
-      } else if (error.code === 'auth/weak-password') {
-        userMessage = 'The password is too weak. Please use a stronger password.';
-      } else if (error.code === 'auth/network-request-failed') {
-        userMessage = 'A network error occurred. Please check your internet connection.';
-      }
-      
       return { 
         success: false, 
-        message: userMessage 
+        message: error.message || 'Failed to create account' 
       };
     }
   };
@@ -172,13 +127,19 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     };
   };
 
-  const resetPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
+  const resetPassword = async (): Promise<{ success: boolean; message: string }> => {
     try {
       const auth = getAuth();
-      await sendPasswordResetEmail(auth, email);
+      if (user?.email) {
+        await sendPasswordResetEmail(auth, user.email);
+        return { 
+          success: true, 
+          message: 'Password reset email sent successfully. Please check your inbox.' 
+        };
+      }
       return { 
-        success: true, 
-        message: 'Password reset email sent successfully. Please check your inbox.' 
+        success: false, 
+        message: 'No email address found for the current user.' 
       };
     } catch (error: any) {
       console.error('Error sending password reset email:', error);
@@ -212,30 +173,30 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      const auth = getAuth();
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      if (result.user) {
+  const sendEmailVerification = async () => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    if (currentUser) {
+      try {
+        await sendEmailVerificationFirebase(currentUser);
         return { 
           success: true, 
-          message: 'Signed in with Google successfully' 
+          message: 'Verification email sent successfully. Please check your inbox.' 
+        };
+      } catch (error: any) {
+        console.error('Error sending verification email:', error);
+        return { 
+          success: false, 
+          message: error.message || 'Failed to send verification email' 
         };
       }
-      
-      return { 
-        success: false, 
-        message: 'Failed to sign in with Google' 
-      };
-    } catch (error: any) {
-      console.error('Error signing in with Google:', error);
-      return { 
-        success: false, 
-        message: error.message || 'Failed to sign in with Google' 
-      };
     }
+    
+    return { 
+      success: false, 
+      message: 'No user is currently signed in' 
+    };
   };
 
   const value = {
@@ -243,12 +204,11 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     loading,
     signUp,
     signIn,
-    signInWithGoogle,
     logout,
     sendVerificationEmail,
     resetPassword,
     isEmailVerified: user?.emailVerified || false,
-    sendEmailVerification: sendVerificationEmail,
+    sendEmailVerification,
     updatePassword
   };
 

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/providers/FirebaseAuthProvider'
 import { auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import AccountSettings from '@/app/components/AccountSettings';
 
 export default function Home() {
   const router = useRouter()
@@ -125,12 +126,7 @@ export default function Home() {
                     >
                       Dashboard
                     </button>
-                    <button 
-                      onClick={handleLogout}
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
-                    >
-                      Logout
-                    </button>
+                    <AccountSettings />
                   </>
                 ) : (
                   <>

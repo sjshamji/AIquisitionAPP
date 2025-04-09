@@ -90,25 +90,28 @@ export function getAllTopicsProgress(topicsList: Topic[], userProgress: UserProg
     const generatedQuestions = getGeneratedQuestions(topic.id);
     const generatedQuestionsCount = generatedQuestions.length;
 
-    // Get user questions from Firebase
-    const userQuestions = userProgress?.topics[topic.id]?.completedQuestions || [];
-    const userQuestionsCount = userQuestions.length;
-
-    // Calculate total questions (base + generated + user)
-    const totalQuestions = Math.max(baseTotalQuestions + generatedQuestionsCount + userQuestionsCount, 1);
+    // Calculate total questions (base + generated)
+    const totalQuestions = Math.max(baseTotalQuestions + generatedQuestionsCount, 1);
 
     // Get progress from Firebase
     const topicData = userProgress?.topics[topic.id] || {
-      completedQuestions: [],
-      correctQuestions: [],
+      completedQuestions: 0,
+      correctQuestions: 0,
       lastAccessed: new Date()
     };
+
+    // Get correct questions from localStorage
+    const correctQuestions = getCorrectQuestions(topic.id);
+    const correctQuestionsCount = correctQuestions.length;
+
+    // Calculate total correct answers (from Firebase only)
+    const correctAnswers = topicData.correctQuestions;
 
     return {
       topicId: topic.id,
       totalQuestions,
-      answeredQuestions: topicData.completedQuestions.length,
-      correctAnswers: topicData.correctQuestions.length
+      answeredQuestions: topicData.completedQuestions,
+      correctAnswers
     };
   });
 }
