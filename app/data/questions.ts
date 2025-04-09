@@ -10,7 +10,7 @@ interface QuestionData {
   Answer: string;
 }
 
-export function getRandomQuestionByTopicAndType(topicId: string, type: string): Question | null {
+export function getRandomQuestionByTopicAndType(topicId: string, questionType: 'multiple-choice' | 'text'): Question | null {
   const filteredQuestions = questionsData.filter((q: QuestionData) => q.Category === topicId);
   if (filteredQuestions.length === 0) return null;
   const randomIndex = Math.floor(Math.random() * filteredQuestions.length);
@@ -18,7 +18,7 @@ export function getRandomQuestionByTopicAndType(topicId: string, type: string): 
   return {
     id: question["Question Number"].toString(),
     text: question.Question,
-    type: type as 'open-ended' | 'multiple-choice',
+    type: type,
     modelAnswer: question.Answer,
     topic: topicId,
     source: "base"
@@ -31,7 +31,7 @@ export function getQuestionsByTopic(topicId: string): Question[] {
     .map(q => ({
     id: q["Question Number"].toString(),
     text: q.Question,
-    type: 'open-ended', // default type for prototype
+    type: 'text', // default type for prototype
     modelAnswer: q.Answer,
     topic: topicId,
     source: "base"
