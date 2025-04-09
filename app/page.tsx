@@ -1,20 +1,47 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/app/providers/FirebaseAuthProvider'
+import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function Home() {
+  const router = useRouter()
+  const { user, logout } = useAuth()
+  const [scrolled, setScrolled] = useState(false)
+  
   useEffect(() => {
     const handleScroll = () => {
-      document.documentElement.style.setProperty('--scroll', window.scrollY.toString());
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial call
-    
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+      const isScrolled = window.scrollY > 10
+      if (isScrolled !== scrolled) {
+        setScrolled(isScrolled)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [scrolled])
+
+  const handleSignIn = () => {
+    router.push('/auth/login')
+  }
+
+  const handleSignUp = async () => {
+    try {
+      // Redirect to the signup page
+      router.push('/auth/signup');
+    } catch (error) {
+      console.error('Error during sign up:', error);
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/')
+  }
 
   return (
     <div className="relative">
@@ -88,11 +115,39 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* Login Button */}
-              <div className="flex items-center">
-                <Link href="/login" className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                  Log in
-                </Link>
+              {/* Auth Buttons */}
+              <div className="flex items-center space-x-4">
+                {user ? (
+                  <>
+                    <button 
+                      onClick={() => router.push('/practice')}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+                    >
+                      Dashboard
+                    </button>
+                    <button 
+                      onClick={handleLogout}
+                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={handleSignIn}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+                    >
+                      Sign In
+                    </button>
+                    <button 
+                      onClick={handleSignUp}
+                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -110,9 +165,14 @@ export default function Home() {
                   Built by experts from Goldman Sachs, JP Morgan, and Morgan Stanley.
                 </p>
                 <div className="pt-4">
-                  <Link href="/signup" className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                    Sign up today!
-                  </Link>
+                  {!user && (
+                    <button 
+                      onClick={handleSignUp}
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    >
+                      Sign up today!
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="relative h-96 rounded-lg overflow-hidden shadow-xl">
@@ -143,7 +203,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2 text-gray-900">AI-Powered Practice</h3>
                 <p className="text-gray-600">
-                  Get instant feedback on your answers with our advanced AI technology that evaluates your responses against industry standards.
+                  Get personalized questions and feedback based on your performance.
                 </p>
               </div>
 
@@ -156,7 +216,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2 text-gray-900">Comprehensive Coverage</h3>
                 <p className="text-gray-600">
-                  Practice questions covering financial modeling, valuation, DCF, M&A, and LBO modeling to prepare for any IB interview.
+                  Practice questions covering all aspects of investment banking interviews.
                 </p>
               </div>
 
@@ -169,7 +229,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2 text-gray-900">Expert Insights</h3>
                 <p className="text-gray-600">
-                  Learn from detailed model answers and expert explanations that break down complex financial concepts.
+                  Learn from industry experts with detailed explanations for each question.
                 </p>
               </div>
             </div>
@@ -274,9 +334,12 @@ export default function Home() {
                     <span>Basic resources</span>
                   </li>
                 </ul>
-                <Link href="/signup" className="block w-full py-3 px-4 text-center bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <button 
+                  onClick={handleSignUp}
+                  className="block w-full py-3 px-4 text-center bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
                   Start Free Trial
-                </Link>
+                </button>
               </div>
 
               {/* Annual Plan */}
@@ -300,30 +363,27 @@ export default function Home() {
                     <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
+                    <span>Save 33% compared to monthly</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
                     <span>Premium resources</span>
                   </li>
                   <li className="flex items-start">
                     <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>1-hour expert consultation</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Resume review</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Save 33% compared to monthly</span>
+                    <span>Priority support</span>
                   </li>
                 </ul>
-                <Link href="/signup" className="block w-full py-3 px-4 text-center bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                  Start Free Trial
-                </Link>
+                <button 
+                  onClick={handleSignUp}
+                  className="block w-full py-3 px-4 text-center bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Get Annual Pass
+                </button>
               </div>
             </div>
           </div>

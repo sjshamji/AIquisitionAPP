@@ -4,60 +4,112 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { topics } from '../data/topics';
 import { TopicProgress, getAllTopicsProgress, resetAllProgress, getGeneratedQuestions, getCorrectQuestions } from '../utils/progress';
+import { useUserData } from '@/app/providers/UserDataProvider';
+import { useAuth } from '@/app/providers/FirebaseAuthProvider';
+import { useRouter } from 'next/navigation';
+import { getQuestionsByTopic } from '../data/questions';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { UserProgress } from '@/app/types';
 
 export default function PracticePage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { userProgress, questions, fetchUserData } = useUserData();
   const [topicsProgress, setTopicsProgress] = useState<TopicProgress[]>([]);
   const [totalCorrectAnswers, setTotalCorrectAnswers] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load progress data from localStorage
-    const progress = getAllTopicsProgress(topics);
-    setTopicsProgress(progress);
-    
-    // Calculate total correct answers and total questions
-    const correct = progress.reduce((sum, topic) => sum + topic.correctAnswers, 0);
-    
-    // Calculate total questions across all topics
-    const total = progress.reduce((sum, topic) => {
-      return sum + topic.totalQuestions;
-    }, 0);
-    
-    setTotalCorrectAnswers(correct);
-    setTotalQuestions(total);
-  }, []);
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
 
-  const handleResetProgress = () => {
+    const loadData = async () => {
+      try {
+        // Load user data from Firebase
+        await fetchUserData(user.uid);
+
+        // Load progress data using Firebase data
+        const progress = getAllTopicsProgress(topics, userProgress);
+        setTopicsProgress(progress);
+
+        // Calculate totals
+        let correct = 0;
+        let total = 0;
+        progress.forEach(topic => {
+          if (topic.totalQuestions > 0) {
+            correct += topic.correctAnswers;
+            total += topic.totalQuestions;
+          }
+        });
+        setTotalCorrectAnswers(correct);
+        setTotalQuestions(total);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user, router, fetchUserData, userProgress]);
+
+  const handleResetProgress = async () => {
     if (window.confirm('Are you sure you want to reset all progress? This will remove all generated questions and reset all counters.')) {
-      resetAllProgress();
+      if (!user) return;
       
-      // Reload the page to reflect the changes
-      window.location.reload();
+      try {
+        // Reset progress in Firebase
+        const emptyProgress: UserProgress = {
+          userId: user.uid,
+          topics: {},
+          lastAccessed: new Date()
+        };
+        await setDoc(doc(db, 'userProgress', user.uid), emptyProgress);
+        
+        // Reset local storage
+        resetAllProgress();
+        
+        // Reload user data
+        await fetchUserData(user.uid);
+        
+        // Reload the page to reflect the changes
+        window.location.reload();
+      } catch (error) {
+        console.error('Error resetting progress:', error);
+      }
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Interview Practice</h1>
-          <div className="flex items-center">
-            <button
-              onClick={handleResetProgress}
-              className="mr-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-            >
-              Reset Progress
-            </button>
-            <Link 
-              href="/"
-              className="text-primary-600 hover:text-primary-700 px-4 py-2 rounded-lg transition-colors flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-              Back to Home
-            </Link>
-          </div>
+          <Link 
+            href="/"
+            className="text-primary-600 hover:text-primary-700 px-4 py-2 rounded-lg transition-colors flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Back to Home
+          </Link>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -65,7 +117,7 @@ export default function PracticePage() {
             <h2 className="text-xl font-semibold mb-4 text-gray-900">Topics</h2>
             <div className="space-y-4">
               {topics.map((topic) => {
-                const progress = topicsProgress.find(p => p.topicId === topic.id) || {
+                const topicProgress = topicsProgress.find(p => p.topicId === topic.id) || {
                   totalQuestions: 0,
                   answeredQuestions: 0,
                   correctAnswers: 0
@@ -75,11 +127,11 @@ export default function PracticePage() {
                 const correctQuestions = getCorrectQuestions(topic.id);
                 
                 // Calculate the number of remaining questions (excluding correct ones)
-                const remainingQuestions = progress.totalQuestions - correctQuestions.length;
+                const remainingQuestions = topicProgress.totalQuestions - correctQuestions.length;
                 
                 // Calculate progress percentage based on total questions
-                const progressPercentage = progress.totalQuestions > 0 
-                  ? Math.round((progress.answeredQuestions / progress.totalQuestions) * 100) 
+                const progressPercentage = topicProgress.totalQuestions > 0 
+                  ? Math.round((topicProgress.answeredQuestions / topicProgress.totalQuestions) * 100) 
                   : 0;
                 
                 return (
@@ -96,7 +148,7 @@ export default function PracticePage() {
                       <div className="w-full md:w-1/3 min-w-[200px]">
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
                           <span>Progress</span>
-                          <span>{progress.answeredQuestions} of {progress.totalQuestions} questions</span>
+                          <span>{topicProgress.answeredQuestions} of {topicProgress.totalQuestions} questions</span>
                         </div>
                         <div className="w-full bg-primary-100 rounded-full h-2.5">
                           <div 
@@ -105,7 +157,7 @@ export default function PracticePage() {
                           ></div>
                         </div>
                         <div className="flex justify-between text-sm mt-1">
-                          <span className="text-green-600">{progress.correctAnswers} correct</span>
+                          <span className="text-green-600">{topicProgress.correctAnswers} correct</span>
                           <span className="text-gray-500">{progressPercentage}% complete</span>
                         </div>
                       </div>
@@ -128,6 +180,16 @@ export default function PracticePage() {
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Reset button moved to the bottom */}
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleResetProgress}
+                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+              >
+                Reset All Progress
+              </button>
             </div>
           </div>
           

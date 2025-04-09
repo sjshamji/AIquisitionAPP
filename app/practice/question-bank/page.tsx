@@ -10,13 +10,40 @@ import {
   isQuestionCorrect,
   getAllTopicsProgress
 } from '../../utils/progress';
-import { Question } from '@/app/types';
+import { Question, UserQuestion } from '@/app/types';
 import { getQuestionsByTopic } from '@/app/data/questions';
+import { useUserData } from '@/app/providers/UserDataProvider';
+import { useAuth } from '@/app/providers/FirebaseAuthProvider';
+import { useUserData as useFirebaseUserData } from '@/app/providers/UserDataProvider';
+import { 
+  getUserQuestions, 
+  addQuestion, 
+  updateQuestion, 
+  deleteQuestion 
+} from '@/lib/firebase';
 
 export default function QuestionBankPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const topicId = searchParams.get('topic');
+  const { user } = useAuth();
+  const { 
+    userProgress, 
+    questions, 
+    addQuestion: addUserQuestion, 
+    removeQuestion, 
+    updateUserQuestion 
+  } = useUserData();
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [newQuestion, setNewQuestion] = useState<Partial<UserQuestion>>({
+    text: '',
+    modelAnswer: '',
+    type: 'open-ended',
+    topic: '',
+    source: 'manual'
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [answerVisibility, setAnswerVisibility] = useState<Record<string, boolean>>({});
   
   const [topic, setTopic] = useState<Topic | null>(null);
   const [baseQuestions, setBaseQuestions] = useState<Question[]>([]);
@@ -24,166 +51,77 @@ export default function QuestionBankPage() {
   const [correctQuestions, setCorrectQuestions] = useState<string[]>([]);
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
-  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
-  const [newQuestion, setNewQuestion] = useState<{
-    text: string;
-    modelAnswer: string;
-    type: 'open-ended' | 'multiple-choice';
-    options: string[];
-    correctOptionIndex: number;
-  }>({
-    text: '',
-    modelAnswer: '',
-    type: 'open-ended',
-    options: ['', '', '', ''],
-    correctOptionIndex: 0
-  });
-  const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userQuestions, setUserQuestions] = useState<UserQuestion[]>([]);
+  const [questionOptions, setQuestionOptions] = useState<Record<string, string[]>>({});
+  const [showAnswer, setShowAnswer] = useState<string | null>(null);
   
   useEffect(() => {
-    if (!topicId) {
-      router.push('/practice');
+    if (!user) {
+      router.push('/auth/login');
       return;
     }
-    
-    // Find the topic
-    const foundTopic = topics.find(t => t.id === topicId);
-    if (!foundTopic) {
-      router.push('/practice');
-      return;
-    }
-    
-    setTopic(foundTopic);
-    
-    // Load base questions for this topic
-    const baseQuestions = getQuestionsByTopic(topicId);
-    setBaseQuestions(baseQuestions);
-    
-    // Load generated questions
-    const generated = getGeneratedQuestions(topicId);
-    
-    // For multiple choice questions, load the options from localStorage
-    const generatedWithOptions = generated.map(q => {
-      if (q.type === 'multiple-choice') {
-        const optionsKey = `question_options_${q.id}`;
-        const storedOptions = localStorage.getItem(optionsKey);
-        if (storedOptions) {
-          try {
-            const options = JSON.parse(storedOptions);
-            return { ...q, options };
-          } catch (error) {
-            console.error('Error parsing question options:', error);
-          }
-        }
-      }
-      return q;
-    });
-    
-    // Load manual questions
-    const manualQuestionsKey = `manual_questions_${topicId}`;
-    const storedManualQuestions = localStorage.getItem(manualQuestionsKey);
-    let manualQuestions: Question[] = [];
-    
-    if (storedManualQuestions) {
+
+    const loadQuestions = async () => {
       try {
-        manualQuestions = JSON.parse(storedManualQuestions);
-      } catch (error) {
-        console.error('Error parsing manual questions:', error);
-      }
-    }
-    
-    // For multiple choice questions, load the options from localStorage
-    const manualWithOptions = manualQuestions.map(q => {
-      if (q.type === 'multiple-choice') {
-        const optionsKey = `question_options_${q.id}`;
-        const storedOptions = localStorage.getItem(optionsKey);
-        if (storedOptions) {
-          try {
-            const options = JSON.parse(storedOptions);
-            return { ...q, options };
-          } catch (error) {
-            console.error('Error parsing question options:', error);
+        // Set selected topic from URL
+        const topicId = searchParams.get('topic');
+        if (topicId) {
+          const foundTopic = topics.find(t => t.id === topicId);
+          if (foundTopic) {
+            setSelectedTopic(topicId);
+            setTopic(foundTopic);
+            setNewQuestion(prev => ({ ...prev, topic: topicId }));
+            
+            // Load base questions for this topic
+            const baseQuestionsForTopic = getQuestionsByTopic(topicId);
+            setBaseQuestions(baseQuestionsForTopic);
+            
+            // Load generated questions for this topic
+            const generatedForTopic = getGeneratedQuestions(topicId);
+            setGeneratedQuestions(generatedForTopic);
+            
+            // Load correct questions for this topic
+            const correctForTopic = getCorrectQuestions(topicId);
+            setCorrectQuestions(correctForTopic);
           }
         }
+
+        // Load user questions from Firebase
+        const userQuestions = await getUserQuestions(user.uid);
+        setUserQuestions(userQuestions);
+
+        // Load options for multiple choice questions from localStorage
+        const storedOptions = localStorage.getItem('questionOptions');
+        if (storedOptions) {
+          const options = JSON.parse(storedOptions);
+          setQuestionOptions(options);
+        }
+      } catch (error) {
+        console.error('Error loading questions:', error);
       }
-      return q;
-    });
-    
-    // Combine generated and manual questions
-    setGeneratedQuestions([...generatedWithOptions, ...manualWithOptions]);
-    
-    // Load correct questions
-    const correct = getCorrectQuestions(topicId);
-    setCorrectQuestions(correct);
-  }, [topicId, router]);
+    };
+
+    loadQuestions();
+  }, [user, router, searchParams]);
   
   const handleAddQuestion = () => {
-    if (!topic) return;
-    
-    // Validate the question
-    if (!newQuestion.text) return;
-    
-    // For multiple choice questions, validate that we have all options and a correct answer
-    if (newQuestion.type === 'multiple-choice') {
-      if (newQuestion.options.some(option => !option.trim())) {
-        setError('All multiple choice options must be filled');
-        return;
-      }
-    } else if (!newQuestion.modelAnswer) {
-      setError('Model answer is required for open-ended questions');
-      return;
+    if (newQuestion.text && newQuestion.modelAnswer) {
+      addUserQuestion({
+        ...newQuestion,
+        topic: selectedTopic,
+        source: 'manual'
+      } as Omit<UserQuestion, 'id' | 'createdAt' | 'userId'>);
+      
+      setNewQuestion({
+        text: '',
+        modelAnswer: '',
+        type: 'open-ended',
+        topic: selectedTopic,
+        source: 'manual'
+      });
     }
-    
-    // Create a new question
-    const question: Question = {
-      id: `manual_${Date.now()}`,
-      text: newQuestion.text,
-      modelAnswer: newQuestion.type === 'multiple-choice' 
-        ? `Correct answer: ${newQuestion.options[newQuestion.correctOptionIndex]}`
-        : newQuestion.modelAnswer,
-      type: newQuestion.type,
-      topic: topic.id,
-      source: 'manual'
-    };
-    
-    // For multiple choice questions, store the options in localStorage
-    if (newQuestion.type === 'multiple-choice') {
-      const optionsKey = `question_options_${question.id}`;
-      localStorage.setItem(optionsKey, JSON.stringify(newQuestion.options));
-    }
-    
-    // Get existing manual questions
-    const manualQuestionsKey = `manual_questions_${topic.id}`;
-    const storedManualQuestions = localStorage.getItem(manualQuestionsKey);
-    let manualQuestions: Question[] = [];
-    
-    if (storedManualQuestions) {
-      try {
-        manualQuestions = JSON.parse(storedManualQuestions);
-      } catch (error) {
-        console.error('Error parsing manual questions:', error);
-      }
-    }
-    
-    // Add to manual questions
-    const updatedManualQuestions = [...manualQuestions, question];
-    localStorage.setItem(manualQuestionsKey, JSON.stringify(updatedManualQuestions));
-    
-    // Update the state
-    setGeneratedQuestions([...generatedQuestions, question]);
-    
-    // Reset form
-    setNewQuestion({
-      text: '',
-      modelAnswer: '',
-      type: 'open-ended',
-      options: ['', '', '', ''],
-      correctOptionIndex: 0
-    });
-    setIsAddingQuestion(false);
-    setError(null);
   };
   
   const handleDeleteQuestion = (questionId: string) => {
@@ -219,114 +157,41 @@ export default function QuestionBankPage() {
     setGeneratedQuestions(prev => prev.filter(q => q.id !== questionId));
   };
   
-  const toggleAnswerVisibility = (questionId: string) => {
-    setVisibleAnswers(prev => ({
-      ...prev,
-      [questionId]: !prev[questionId]
-    }));
-  };
-  
-  const handleEditQuestion = (question: Question) => {
-    if (!topic) return;
-    
-    // Set the editing state
-    setIsEditingQuestion(true);
+  const handleEditQuestion = (question: UserQuestion) => {
+    setEditMode(true);
     setEditingQuestionId(question.id);
-    
-    // Populate the form with the question data
     setNewQuestion({
       text: question.text,
       modelAnswer: question.modelAnswer,
       type: question.type,
-      options: question.options || ['', '', '', ''],
-      correctOptionIndex: question.type === 'multiple-choice' ? 
-        (question.options?.indexOf(question.modelAnswer.replace('Correct answer: ', '')) || 0) : 0
+      topic: question.topic,
+      options: question.options || [],
+      source: question.source
     });
-    
-    // Show the form
-    setIsAddingQuestion(true);
   };
   
   const handleUpdateQuestion = () => {
-    if (!topic || !editingQuestionId) return;
-    
-    // Validate the question
-    if (!newQuestion.text) return;
-    
-    // For multiple choice questions, validate that we have all options and a correct answer
-    if (newQuestion.type === 'multiple-choice') {
-      if (newQuestion.options.some(option => !option.trim())) {
-        setError('All multiple choice options must be filled');
-        return;
-      }
-    } else if (!newQuestion.modelAnswer) {
-      setError('Model answer is required for open-ended questions');
-      return;
+    if (editingQuestionId && newQuestion.text && newQuestion.modelAnswer) {
+      updateUserQuestion(editingQuestionId, {
+        ...newQuestion,
+        topic: selectedTopic,
+        source: 'manual'
+      });
+      setEditMode(false);
+      setEditingQuestionId(null);
+      setNewQuestion({
+        text: '',
+        modelAnswer: '',
+        type: 'open-ended',
+        topic: selectedTopic,
+        options: [],
+        source: 'manual'
+      });
     }
-    
-    // Get existing manual questions
-    const manualQuestionsKey = `manual_questions_${topic.id}`;
-    const storedManualQuestions = localStorage.getItem(manualQuestionsKey);
-    let manualQuestions: Question[] = [];
-    
-    if (storedManualQuestions) {
-      try {
-        manualQuestions = JSON.parse(storedManualQuestions);
-      } catch (error) {
-        console.error('Error parsing manual questions:', error);
-      }
-    }
-    
-    // Find the question to update
-    const questionIndex = manualQuestions.findIndex(q => q.id === editingQuestionId);
-    
-    if (questionIndex === -1) {
-      setError('Question not found');
-      return;
-    }
-    
-    // Update the question
-    const updatedQuestion: Question = {
-      ...manualQuestions[questionIndex],
-      text: newQuestion.text,
-      modelAnswer: newQuestion.type === 'multiple-choice' 
-        ? `Correct answer: ${newQuestion.options[newQuestion.correctOptionIndex]}`
-        : newQuestion.modelAnswer,
-      type: newQuestion.type
-    };
-    
-    // Update the options for multiple choice questions
-    if (newQuestion.type === 'multiple-choice') {
-      const optionsKey = `question_options_${updatedQuestion.id}`;
-      localStorage.setItem(optionsKey, JSON.stringify(newQuestion.options));
-    }
-    
-    // Update the question in the array
-    manualQuestions[questionIndex] = updatedQuestion;
-    
-    // Save to localStorage
-    localStorage.setItem(manualQuestionsKey, JSON.stringify(manualQuestions));
-    
-    // Update the state
-    setGeneratedQuestions(prev => 
-      prev.map(q => q.id === editingQuestionId ? updatedQuestion : q)
-    );
-    
-    // Reset form
-    setNewQuestion({
-      text: '',
-      modelAnswer: '',
-      type: 'open-ended',
-      options: ['', '', '', ''],
-      correctOptionIndex: 0
-    });
-    setIsAddingQuestion(false);
-    setIsEditingQuestion(false);
-    setEditingQuestionId(null);
-    setError(null);
   };
   
-  const allQuestions = [...baseQuestions, ...generatedQuestions];
+  // Filter questions based on selected topic
+  const filteredQuestions = questions.filter(q => q.topic === selectedTopic);
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white py-12 px-4 sm:px-6 lg:px-8">
@@ -348,7 +213,10 @@ export default function QuestionBankPage() {
         
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">All Questions ({allQuestions.length})</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {topic ? `${topic.name} Question Bank` : 'Question Bank'} 
+              ({baseQuestions.length + generatedQuestions.length + filteredQuestions.length} questions)
+            </h2>
             <button
               onClick={() => {
                 setIsAddingQuestion(!isAddingQuestion);
@@ -383,84 +251,23 @@ export default function QuestionBankPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="questionType" className="block text-sm font-medium text-gray-700 mb-1">
-                    Question Type
+                  <label htmlFor="correctAnswer" className="block text-sm font-medium text-gray-700 mb-1">
+                    Correct Answer
                   </label>
-                  <select
-                    id="questionType"
+                  <textarea
+                    id="correctAnswer"
+                    rows={5}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    value={newQuestion.type}
-                    onChange={(e) => {
-                      const type = e.target.value as 'open-ended' | 'multiple-choice';
-                      setNewQuestion({
-                        ...newQuestion, 
-                        type,
-                        // Reset options when switching to open-ended
-                        options: type === 'open-ended' ? ['', '', '', ''] : newQuestion.options,
-                        // Reset correct option index when switching to open-ended
-                        correctOptionIndex: type === 'open-ended' ? 0 : newQuestion.correctOptionIndex
-                      });
-                    }}
-                  >
-                    <option value="open-ended">Open-ended</option>
-                    <option value="multiple-choice">Multiple Choice</option>
-                  </select>
+                    value={newQuestion.modelAnswer}
+                    onChange={(e) => setNewQuestion({...newQuestion, modelAnswer: e.target.value})}
+                    placeholder="Enter the correct answer here..."
+                  />
                 </div>
-                
-                {newQuestion.type === 'multiple-choice' ? (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-gray-700">Answer Options</h4>
-                    {newQuestion.options.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id={`option-${index}`}
-                          name="correctOption"
-                          checked={newQuestion.correctOptionIndex === index}
-                          onChange={() => setNewQuestion({
-                            ...newQuestion,
-                            correctOptionIndex: index
-                          })}
-                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
-                        />
-                        <input
-                          type="text"
-                          value={option}
-                          onChange={(e) => {
-                            const updatedOptions = [...newQuestion.options];
-                            updatedOptions[index] = e.target.value;
-                            setNewQuestion({
-                              ...newQuestion,
-                              options: updatedOptions
-                            });
-                          }}
-                          placeholder={`Option ${index + 1}`}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div>
-                    <label htmlFor="modelAnswer" className="block text-sm font-medium text-gray-700 mb-1">
-                      Model Answer
-                    </label>
-                    <textarea
-                      id="modelAnswer"
-                      rows={5}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                      value={newQuestion.modelAnswer}
-                      onChange={(e) => setNewQuestion({...newQuestion, modelAnswer: e.target.value})}
-                      placeholder="Enter the model answer here..."
-                    />
-                  </div>
-                )}
                 
                 <div className="flex justify-end">
                   <button
                     onClick={isEditingQuestion ? handleUpdateQuestion : handleAddQuestion}
-                    disabled={!newQuestion.text || (newQuestion.type === 'open-ended' && !newQuestion.modelAnswer) || 
-                             (newQuestion.type === 'multiple-choice' && newQuestion.options.some(option => !option.trim()))}
+                    disabled={!newQuestion.text || !newQuestion.modelAnswer}
                     className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isEditingQuestion ? 'Update Question' : 'Save Question'}
@@ -477,103 +284,173 @@ export default function QuestionBankPage() {
           )}
           
           <div className="space-y-4">
-            {allQuestions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No questions available for this topic.</p>
-            ) : (
-              allQuestions.map((question, index) => {
-                const isCorrect = isQuestionCorrect(question.id, topicId);
-                const isGenerated = question.source === 'generated';
-                const isManual = question.source === 'manual';
-                const isBase = question.source === 'base';
-                const isAnswerVisible = visibleAnswers[question.id] || false;
-                
-                return (
-                  <div 
-                    key={question.id}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="font-medium text-gray-900">{index + 1}:</span>
-                          {isGenerated && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                              Generated
-                            </span>
-                          )}
-                          {isManual && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded-full">
-                              Manual
-                            </span>
-                          )}
-                          {isCorrect && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                              Correct
-                            </span>
-                          )}
-                          {question.type === 'multiple-choice' && (
-                            <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                              Multiple Choice
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-gray-700 mb-2">{question.text}</p>
-                        
-                        {question.type === 'multiple-choice' && question.options && (
-                          <div className="mt-2 mb-3 space-y-2">
-                            {question.options.map((option, optionIndex) => (
-                              <div key={optionIndex} className="flex items-center">
-                                <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center mr-2 text-xs">
-                                  {String.fromCharCode(65 + optionIndex)}
-                                </div>
-                                <span className="text-sm text-gray-600">{option}</span>
-                              </div>
-                            ))}
+            {/* Display base questions */}
+            {baseQuestions.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-3">Base Questions</h3>
+                {baseQuestions.map((question, index) => {
+                  const isCorrect = isQuestionCorrect(question.id, selectedTopic);
+                  return (
+                    <div key={question.id} className="bg-white rounded-lg shadow-md p-6 mb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="font-medium text-gray-900">{index + 1}:</span>
+                            {isCorrect && (
+                              <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                Correct
+                              </span>
+                            )}
                           </div>
-                        )}
-                        
+                          <p className="text-gray-700 mb-2">{question.text}</p>
+                          <div className="mt-2">
+                            <button
+                              onClick={() => setAnswerVisibility(prev => ({...prev, [question.id]: !prev[question.id]}))}
+                              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                            >
+                              {answerVisibility[question.id] ? 'Hide Answer' : 'Show Answer'}
+                            </button>
+                            {answerVisibility[question.id] && (
+                              <div className="mt-2 p-3 bg-gray-50 rounded-md text-gray-700">
+                                <p className="font-medium mb-2">Correct Answer:</p>
+                                <p>{question.modelAnswer}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center space-x-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Base
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Display generated questions */}
+            {generatedQuestions.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-3">Generated Questions</h3>
+                {generatedQuestions.map((question, index) => {
+                  const isCorrect = isQuestionCorrect(question.id, selectedTopic);
+                  return (
+                    <div key={question.id} className="bg-white rounded-lg shadow-md p-6 mb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="font-medium text-gray-900">{baseQuestions.length + index + 1}:</span>
+                            {isCorrect && (
+                              <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                Correct
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-700 mb-2">{question.text}</p>
+                          <div className="mt-2">
+                            <button
+                              onClick={() => setAnswerVisibility(prev => ({...prev, [question.id]: !prev[question.id]}))}
+                              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                            >
+                              {answerVisibility[question.id] ? 'Hide Answer' : 'Show Answer'}
+                            </button>
+                            {answerVisibility[question.id] && (
+                              <div className="mt-2 p-3 bg-gray-50 rounded-md text-gray-700">
+                                <p className="font-medium mb-2">Correct Answer:</p>
+                                <p>{question.modelAnswer}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center space-x-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Generated
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Display user questions */}
+            {filteredQuestions.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-3">Your Questions</h3>
+                {filteredQuestions.map((userQuestion) => (
+                  <div key={userQuestion.id} className="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <p className="text-gray-700 mb-2">{userQuestion.text}</p>
                         <div className="mt-2">
                           <button
-                            onClick={() => toggleAnswerVisibility(question.id)}
-                            className="text-sm text-primary-600 hover:text-primary-800"
+                            onClick={() => setShowAnswer(userQuestion.id)}
+                            className="text-primary-600 hover:text-primary-700 font-medium"
                           >
-                            {isAnswerVisible ? 'Hide Model Answer' : 'Show Model Answer'}
+                            {showAnswer === userQuestion.id ? 'Hide Answer' : 'Show Answer'}
                           </button>
-                          {isAnswerVisible && (
+                          {showAnswer === userQuestion.id && (
                             <div className="mt-2 p-3 bg-gray-50 rounded-md text-gray-700">
-                              {question.modelAnswer}
+                              <p className="font-medium mb-2">Correct Answer:</p>
+                              <p>{userQuestion.modelAnswer}</p>
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        {isManual && (
-                          <button
-                            onClick={() => handleEditQuestion(question)}
-                            className="ml-4 text-blue-500 hover:text-blue-700"
-                            title="Edit question"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                          </button>
-                        )}
-                        {(isGenerated || isManual) && (
-                          <button
-                            onClick={() => handleDeleteQuestion(question.id)}
-                            className="ml-4 text-red-500 hover:text-red-700"
-                            title="Delete question"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </button>
+                        {(userQuestion.source === 'manual' || userQuestion.source === 'generated') && (
+                          <div className="flex space-x-2 ml-4">
+                            {userQuestion.source === 'manual' && (
+                              <button
+                                onClick={() => handleEditQuestion(userQuestion)}
+                                className="text-primary-600 hover:text-primary-700"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <button
+                              onClick={() => removeQuestion(userQuestion.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
+                    <div className="mt-2 flex items-center space-x-2">
+                      {userQuestion.source === 'generated' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Generated
+                        </span>
+                      )}
+                      {userQuestion.source === 'manual' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Manual
+                        </span>
+                      )}
+                    </div>
                   </div>
-                );
-              })
+                ))}
+              </div>
+            )}
+            
+            {baseQuestions.length === 0 && generatedQuestions.length === 0 && filteredQuestions.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No questions available for this topic yet.</p>
+                <p className="text-gray-500 mt-2">Add your own questions to get started!</p>
+              </div>
             )}
           </div>
         </div>

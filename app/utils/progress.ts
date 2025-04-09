@@ -1,5 +1,6 @@
-import { Topic } from '@/app/data/topics';
-import { getQuestionsByTopic } from '@/app/data/questions';
+import { topics } from '../data/topics';
+import { UserProgress, Topic } from '../types';
+import { getQuestionsByTopic } from '../data/questions';
 
 export interface TopicProgress {
   topicId: string;
@@ -79,8 +80,37 @@ export function updateTopicProgress(topicId: string, isCorrect: boolean, additio
   localStorage.setItem(progressKey, JSON.stringify(updatedProgress));
 }
 
-export function getAllTopicsProgress(topics: Topic[]): TopicProgress[] {
-  return topics.map(topic => getTopicProgress(topic.id));
+export function getAllTopicsProgress(topicsList: Topic[], userProgress: UserProgress | null): TopicProgress[] {
+  return topicsList.map(topic => {
+    // Get base questions for this topic
+    const baseQuestions = getQuestionsByTopic(topic.id);
+    const baseTotalQuestions = baseQuestions.length;
+
+    // Get generated questions from localStorage
+    const generatedQuestions = getGeneratedQuestions(topic.id);
+    const generatedQuestionsCount = generatedQuestions.length;
+
+    // Get user questions from Firebase
+    const userQuestions = userProgress?.topics[topic.id]?.completedQuestions || [];
+    const userQuestionsCount = userQuestions.length;
+
+    // Calculate total questions (base + generated + user)
+    const totalQuestions = Math.max(baseTotalQuestions + generatedQuestionsCount + userQuestionsCount, 1);
+
+    // Get progress from Firebase
+    const topicData = userProgress?.topics[topic.id] || {
+      completedQuestions: [],
+      correctQuestions: [],
+      lastAccessed: new Date()
+    };
+
+    return {
+      topicId: topic.id,
+      totalQuestions,
+      answeredQuestions: topicData.completedQuestions.length,
+      correctAnswers: topicData.correctQuestions.length
+    };
+  });
 }
 
 // Reset progress for a specific topic
@@ -96,23 +126,11 @@ export function resetTopicProgress(topicId: string): void {
 }
 
 // Reset progress for all topics
-export function resetAllProgress(): void {
-  if (typeof window === 'undefined') return;
-  
-  // Get all keys from localStorage
-  const keys = Object.keys(localStorage);
-  
-  // Remove all progress keys
-  keys.forEach(key => {
-    if (key.startsWith('progress_')) {
-      localStorage.removeItem(key);
-    }
-    if (key.startsWith('generated_questions_')) {
-      localStorage.removeItem(key);
-    }
-    if (key.startsWith('correct_questions_')) {
-      localStorage.removeItem(key);
-    }
+export function resetAllProgress() {
+  // Clear all generated questions
+  topics.forEach(topic => {
+    localStorage.removeItem(`generated_questions_${topic.id}`);
+    localStorage.removeItem(`correct_questions_${topic.id}`);
   });
 }
 
@@ -126,19 +144,8 @@ export function storeGeneratedQuestions(topicId: string, questions: any[]): void
 
 // Get generated questions for a topic
 export function getGeneratedQuestions(topicId: string): any[] {
-  if (typeof window === 'undefined') return [];
-  
-  const generatedQuestionsKey = `generated_questions_${topicId}`;
-  const storedQuestions = localStorage.getItem(generatedQuestionsKey);
-  
-  if (!storedQuestions) return [];
-  
-  try {
-    return JSON.parse(storedQuestions);
-  } catch (error) {
-    console.error('Error parsing generated questions:', error);
-    return [];
-  }
+  const storedQuestions = localStorage.getItem(`generated_questions_${topicId}`);
+  return storedQuestions ? JSON.parse(storedQuestions) : [];
 }
 
 // Mark a question as correct
@@ -166,24 +173,12 @@ export function markQuestionAsCorrect(topicId: string, questionId: string): void
 
 // Get all questions marked as correct for a topic
 export function getCorrectQuestions(topicId: string): string[] {
-  if (typeof window === 'undefined') return [];
-  
-  const correctQuestionsKey = `correct_questions_${topicId}`;
-  const storedCorrectQuestions = localStorage.getItem(correctQuestionsKey);
-  
-  if (!storedCorrectQuestions) return [];
-  
-  try {
-    return JSON.parse(storedCorrectQuestions);
-  } catch (error) {
-    console.error('Error parsing correct questions:', error);
-    return [];
-  }
+  const storedCorrect = localStorage.getItem(`correct_questions_${topicId}`);
+  return storedCorrect ? JSON.parse(storedCorrect) : [];
 }
 
 // Check if a question has been marked as correct
-export function isQuestionCorrect(questionId: string, topicId: string | null): boolean {
-  if (!topicId) return false;
+export function isQuestionCorrect(questionId: string, topicId: string): boolean {
   const correctQuestions = getCorrectQuestions(topicId);
   return correctQuestions.includes(questionId);
 } 

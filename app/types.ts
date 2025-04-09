@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   text: string;
   modelAnswer: string;
-  type: 'open-ended' | 'multiple-choice';
+  type: 'multiple-choice' | 'open-ended';
   topic: string;
   source?: 'manual' | 'generated' | 'base';
   options?: string[];
@@ -30,4 +30,23 @@ export interface FeedbackResult {
     score: 'Strong' | 'Good' | 'Needs improvement';
     comment: string;
   }>;
+}
+
+export interface UserProgress {
+  userId: string;
+  topics: {
+    [topicId: string]: {
+      completedQuestions: string[];
+      correctQuestions: string[];
+      lastAccessed: Date;
+    };
+  };
+  lastAccessed: Date;
+}
+
+export interface UserQuestion extends Question {
+  userId: string;
+  createdAt: Date;
+  source: 'manual' | 'generated';
+  isCorrect?: boolean;
 } 

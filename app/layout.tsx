@@ -1,34 +1,29 @@
-import React from 'react';
-import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import Footer from './components/Footer';
-import Settings from './components/Settings';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { FirebaseAuthProvider } from "./providers/FirebaseAuthProvider";
+import { UserDataProvider } from "./providers/UserDataProvider";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'AIquisition',
-  description: 'Learn AI concepts through interactive questions',
+  title: "AIquisition - Investment Banking Interview Prep",
+  description: "AI-powered investment banking interview preparation platform",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-white min-h-screen`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-end py-4">
-            <Settings />
-          </div>
-          <main className="flex-grow">
+      <body className={inter.className}>
+        <FirebaseAuthProvider>
+          <UserDataProvider>
             {children}
-          </main>
-          <Footer />
-        </div>
+          </UserDataProvider>
+        </FirebaseAuthProvider>
       </body>
     </html>
   );
