@@ -24,6 +24,11 @@ export const topics: Topic[] = [
     description: 'Financial statements, accounting principles, and financial reporting concepts'
   },  
   {
+    id: 'DCF',
+    name: 'Discounted Cash Flow',
+    description: 'Discounted Cash Flow concepts, including terminal value, WACC, and other valuation techniques'
+  },
+  {
     id: 'Merger Model (M&A)',
     name: 'Merger Models',
     description: 'Merger models, including LBOs, EBITDA, and other valuation techniques'
@@ -32,11 +37,6 @@ export const topics: Topic[] = [
     id: 'Leveraged Buyouts (LBO)',
     name: 'LBO Model',
     description: 'LBO models, including EBITDA, terminal value, and other valuation techniques'
-  },
-  {
-    id: 'DCF',
-    name: 'Discounted Cash Flow',
-    description: 'Discounted Cash Flow concepts, including terminal value, WACC, and other valuation techniques'
   },
   {
     id: 'Brain Teasers/Misc.',
